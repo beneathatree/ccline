@@ -10,6 +10,8 @@ It was simpler to just give enough context to Claude Code itself to build this t
 
 **No installers. No external downloads. Just a single, readable bash script.**
 
+But what if you don't trust *me* either? Fair. Check out [SPEC.md](SPEC.md) - it's a plain-English specification of exactly what this tool does. Read it, copy it into your project folder, and ask Claude to build it for you. English is the new programming language anyway (Conditions apply).
+
 ## What It Does
 
 Displays your current context window usage in Claude Code's status line:
@@ -214,6 +216,7 @@ The "free" calculation also differs because `/context` accounts for the autocomp
 ccline/
 ├── context-statusline.sh    # The main (and only) script
 ├── README.md                 # This file
+├── SPEC.md                   # Technical specification for reimplementation
 ├── LICENSE                   # MIT License
 └── .claude/
     └── settings.local.json  # Local Claude Code permissions
