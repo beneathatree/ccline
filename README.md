@@ -14,23 +14,33 @@ But what if you don't trust *me* either? Fair. Check out [SPEC.md](SPEC.md) - it
 
 ## What It Does
 
-Displays your current context window usage in Claude Code's status line:
+Displays your current context window usage in Claude Code's status line using a **redaction visualization**:
 
 ```
-ctx: 45.2K/200K (22.6%) | free: 154.8K
+Opus 4.5 | CONTEXT WINDOW (90%) | $0.05 | user/project | /path/to/transcript.jsonl
 ```
 
-The output is color-coded based on usage:
-- **Green**: < 50% - Plenty of room
-- **Yellow**: 50-75% - Moderate usage
-- **Orange**: 75-90% - Getting full
-- **Red**: >= 90% - Nearly exhausted
+As context fills up, the text "CONTEXT WINDOW" progressively gets censored:
+
+| Usage | Display |
+|-------|---------|
+| < 20% | `CONTEXT WINDOW (85%)` |
+| 20-39% | `CONTEXT ██████ (65%)` |
+| 40-59% | `████EXT ██████ (45%)` |
+| 60-79% | `████████ █████ (25%)` |
+| >= 80% | `██████████████ (10%)` |
+
+The percentage shows **remaining** context, not used. The output is color-coded:
+- **Green**: < 50% used - Plenty of room
+- **Yellow**: 50-75% used - Moderate usage
+- **Orange**: 75-90% used - Getting full
+- **Red**: >= 90% used - Nearly exhausted
 
 Colors use RGB true color escape sequences (`\033[38;2;R;G;Bm`) for consistent display regardless of terminal theme. Requires a terminal with true color support (most modern terminals).
 
 ## How It Works
 
-The script receives JSON data from Claude Code via stdin containing context window metrics:
+The script receives JSON data from Claude Code via stdin containing session metrics:
 
 ```json
 {
@@ -38,26 +48,26 @@ The script receives JSON data from Claude Code via stdin containing context wind
     "total_input_tokens": 45200,
     "total_output_tokens": 12300,
     "context_window_size": 200000
-  }
+  },
+  "model": {
+    "display_name": "Opus 4.5"
+  },
+  "cost": {
+    "total_cost_usd": 0.05
+  },
+  "cwd": "/home/user/project",
+  "transcript_path": "/home/user/.claude/sessions/abc123.jsonl"
 }
 ```
 
 ### Processing Flow
 
-1. **Parse JSON** - Extract input tokens, output tokens, and context window size using `jq`
+1. **Parse JSON** - Extract tokens, model, cost, cwd, and transcript using `jq`
 2. **Validate** - Check for null/empty values and apply defaults
-3. **Calculate** - Compute used tokens (input + output) and percentage
-4. **Format** - Convert raw numbers to human-readable format (K for thousands, M for millions)
+3. **Calculate** - Compute used tokens (input + output), percentage, and remaining
+4. **Redact** - Generate redaction visualization based on usage percentage
 5. **Colorize** - Apply ANSI color codes based on usage percentage
 6. **Output** - Print the formatted status line
-
-### Token Formatting
-
-| Raw Value | Displayed As |
-|-----------|--------------|
-| 1,050,000 | 1.1M |
-| 45,200 | 45.2K |
-| 500 | 500 |
 
 ## Installation
 
@@ -106,13 +116,13 @@ chmod +x ~/bin/context-statusline.sh
 Verify the script works by running it with sample data:
 
 ```bash
-echo '{"context_window":{"total_input_tokens":45200,"total_output_tokens":12300,"context_window_size":200000}}' | ~/bin/context-statusline.sh
+echo '{"context_window":{"total_input_tokens":20000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project","transcript_path":"/tmp/transcript.jsonl"}' | ~/bin/context-statusline.sh
 ```
 
 You should see output like:
 
 ```
-ctx: 57.5K/200K (28.8%) | free: 142.5K
+Opus 4.5 | CONTEXT WINDOW (85%) | $0.05 | user/project | /tmp/transcript.jsonl
 ```
 
 If you see colors, your terminal supports true color. If not, the text will still display correctly.
@@ -204,9 +214,9 @@ This script only receives `total_input_tokens` and `total_output_tokens` from th
 
 **Example discrepancy:**
 - `/context` shows: `22K/200K (11%) | free: 133K`
-- This script shows: `12.7K/200K (6.4%) | free: 187.3K`
+- This script shows: `CONTEXT WINDOW (94%)` (only 6% used)
 
-The "free" calculation also differs because `/context` accounts for the autocompact buffer reservation (~45k tokens reserved for summarization), while this script does a simple `total - used` calculation.
+The difference is because `/context` accounts for the autocompact buffer reservation (~45k tokens reserved for summarization) and system overhead, while this script only sees conversation message tokens.
 
 **Bottom line:** Use this script for a rough indicator of conversation growth, but refer to `/context` for accurate full context usage.
 

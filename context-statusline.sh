@@ -64,6 +64,28 @@ USED_FMT=$(format_tokens $USED)
 SIZE_FMT=$(format_tokens $CONTEXT_SIZE)
 FREE=$((CONTEXT_SIZE - USED))
 FREE_FMT=$(format_tokens $FREE)
+REMAINING_PCT=$(awk "BEGIN {printf \"%.0f\", 100 - $PERCENTAGE}")
+
+# Redaction visualization - text gets censored as context fills
+redaction_viz() {
+    local pct=$1
+    local remaining=$2
+    local pct_int=${pct%.*}  # Remove decimal
+
+    if (( pct_int < 20 )); then
+        echo "CONTEXT WINDOW ($remaining%)"
+    elif (( pct_int < 40 )); then
+        echo "CONTEXT ██████ ($remaining%)"
+    elif (( pct_int < 60 )); then
+        echo "████EXT ██████ ($remaining%)"
+    elif (( pct_int < 80 )); then
+        echo "████████ █████ ($remaining%)"
+    else
+        echo "██████████████ ($remaining%)"
+    fi
+}
+
+REDACT=$(redaction_viz "$PERCENTAGE" "$REMAINING_PCT")
 
 # Color based on usage percentage (using RGB true colors for consistent display)
 GREEN=$'\033[38;2;0;200;0m'
@@ -83,12 +105,12 @@ else
 fi
 
 # Output the statusline
-# Format: model | ctx: used/total (%) | cost | cwd | transcript
+# Format: model | redaction | cost | cwd | transcript
 CYAN=$'\033[38;2;100;200;255m'
 DIM=$'\033[2m'
-printf "%s%s%s | %sctx: %s/%s (%s%%)%s | %s | %s%s%s | %s%s%s\n" \
+printf "%s%s%s | %s%s%s | %s | %s%s%s | %s%s%s\n" \
     "$CYAN" "$MODEL" "$RESET" \
-    "$COLOR" "$USED_FMT" "$SIZE_FMT" "$PERCENTAGE" "$RESET" \
+    "$COLOR" "$REDACT" "$RESET" \
     "$COST_FMT" \
     "$DIM" "$CWD_SHORT" "$RESET" \
     "$DIM" "$TRANSCRIPT" "$RESET"

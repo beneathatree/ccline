@@ -6,6 +6,8 @@ This document specifies the behavior of the ccline status line tool. Use this to
 
 ccline is a status line hook for Claude Code that displays real-time session information including model name, context window usage, cost, working directory, and transcript location. Claude Code invokes the script and pipes JSON data to stdin. The script outputs a formatted, color-coded status string to stdout.
 
+The context usage is displayed using a **redaction visualization** where the text "CONTEXT WINDOW" progressively gets censored as context fills up, providing an intuitive visual indicator of remaining capacity.
+
 ## Input
 
 Claude Code pipes JSON to stdin with the following structure:
@@ -107,12 +109,12 @@ If `context_window_size` is `0`, treat it as `200000` to avoid division by zero.
 Print a single line to stdout in this format:
 
 ```
-<model> | ctx: <used>/<total> (<percentage>%) | <cost> | <cwd> | <transcript>
+<model> | <redaction> (<remaining>%) | <cost> | <cwd> | <transcript>
 ```
 
 Example:
 ```
-Opus | ctx: 57.5K/200K (28.7%) | $0.05 | projects/ccline | /home/user/.claude/sessions/abc123.json
+Opus | CONTEXT ██████ (71%) | $0.05 | projects/ccline | /home/user/.claude/sessions/abc123.json
 ```
 
 ### Calculations
@@ -120,7 +122,22 @@ Opus | ctx: 57.5K/200K (28.7%) | $0.05 | projects/ccline | /home/user/.claude/se
 ```
 used = total_input_tokens + total_output_tokens
 percentage = (used / context_window_size) * 100
+remaining = 100 - percentage
 ```
+
+### Redaction Visualization
+
+The context display uses a "redaction" metaphor where the text "CONTEXT WINDOW" progressively gets censored as context fills up:
+
+| Usage | Display |
+|-------|---------|
+| `< 20%` | `CONTEXT WINDOW` |
+| `20% - 39%` | `CONTEXT ██████` |
+| `40% - 59%` | `████EXT ██████` |
+| `60% - 79%` | `████████ █████` |
+| `>= 80%` | `██████████████` |
+
+The parenthetical shows the **remaining** percentage (not used), providing an at-a-glance indicator of available capacity.
 
 ### Number Formatting
 
@@ -239,14 +256,14 @@ Alternative implementations may use any JSON parser and standard math operations
 
 ## Test Cases
 
-### Basic Usage
+### Basic Usage (Low Context)
 
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 45200, "total_output_tokens": 12300, "context_window_size": 200000},
+  "context_window": {"total_input_tokens": 10000, "total_output_tokens": 10000, "context_window_size": 200000},
   "model": {"id": "claude-opus-4-5", "display_name": "Opus"},
-  "cost": {"total_cost_usd": 0.0523},
+  "cost": {"total_cost_usd": 0.05},
   "cwd": "/home/user/dev/projects/myapp",
   "transcript_path": "/home/user/.claude/sessions/abc123.json"
 }
@@ -254,17 +271,37 @@ Input:
 
 Expected output (without color codes):
 ```
-Opus | ctx: 57.5K/200K (28.7%) | $0.05 | projects/myapp | /home/user/.claude/sessions/abc123.json
+Opus | CONTEXT WINDOW (90%) | $0.05 | projects/myapp | /home/user/.claude/sessions/abc123.json
 ```
 
-Color: Context in Green (28.7% < 50%)
+Color: Green (10% used < 50%)
+
+### Medium Usage
+
+Input:
+```json
+{
+  "context_window": {"total_input_tokens": 55000, "total_output_tokens": 55000, "context_window_size": 200000},
+  "model": {"display_name": "Sonnet"},
+  "cost": {"total_cost_usd": 0.25},
+  "cwd": "/home/user/project",
+  "transcript_path": "/tmp/transcript.json"
+}
+```
+
+Expected output:
+```
+Sonnet | ████EXT ██████ (45%) | $0.25 | user/project | /tmp/transcript.json
+```
+
+Color: Yellow (55% used, 50-75% range)
 
 ### High Usage with Small Cost
 
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 150000, "total_output_tokens": 35000, "context_window_size": 200000},
+  "context_window": {"total_input_tokens": 90000, "total_output_tokens": 90000, "context_window_size": 200000},
   "model": {"display_name": "Sonnet"},
   "cost": {"total_cost_usd": 0.003},
   "cwd": "/home/user",
@@ -274,10 +311,10 @@ Input:
 
 Expected output:
 ```
-Sonnet | ctx: 185K/200K (92.5%) | $0.0030 | home/user | /tmp/transcript.json
+Sonnet | ██████████████ (10%) | $0.0030 | home/user | /tmp/transcript.json
 ```
 
-Color: Context in Red (92.5% >= 90%), cost shows 4 decimal places
+Color: Red (90% used >= 90%), cost shows 4 decimal places
 
 ### Null/Missing Values
 
@@ -288,30 +325,30 @@ Input:
 
 Expected output:
 ```
-Unknown | ctx: 0/200K (0.0%) | $0.0000 | N/A |
+Unknown | CONTEXT WINDOW (100%) | $0.0000 | N/A |
 ```
 
-Color: Context in Green (0% < 50%)
+Color: Green (0% used < 50%)
 
-### Million-Scale Tokens
+### Partial Redaction
 
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 500000, "total_output_tokens": 550000, "context_window_size": 2000000},
+  "context_window": {"total_input_tokens": 35000, "total_output_tokens": 35000, "context_window_size": 200000},
   "model": {"display_name": "Opus"},
-  "cost": {"total_cost_usd": 1.25},
-  "cwd": "/workspace/large-project",
+  "cost": {"total_cost_usd": 0.15},
+  "cwd": "/workspace/project",
   "transcript_path": "/data/sessions/session.json"
 }
 ```
 
 Expected output:
 ```
-Opus | ctx: 1.1M/2M (52.5%) | $1.25 | workspace/large-project | /data/sessions/session.json
+Opus | CONTEXT ██████ (65%) | $0.15 | workspace/project | /data/sessions/session.json
 ```
 
-Color: Context in Yellow (52.5% >= 50%, < 75%)
+Color: Green (35% used < 50%)
 
 ## Sources & Verification
 
