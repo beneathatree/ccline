@@ -9,6 +9,7 @@ ccline is a bash statusline script for Claude Code that displays context usage v
 - `context-statusline.sh` - The entire implementation (single file)
 - `SPEC.md` - Technical specification for reimplementation in other languages
 - `README.md` - User documentation and installation guide
+- `CHANGELOG.md` - Version history (update with each commit)
 
 ## Testing
 
@@ -66,7 +67,8 @@ echo '{}' | ./context-statusline.sh
 
 ## Keep In Sync
 
-When modifying behavior, update all three:
+When modifying behavior, update:
 1. `context-statusline.sh` - Implementation
 2. `SPEC.md` - Technical spec (test cases especially)
 3. `README.md` - User-facing docs
+4. `CHANGELOG.md` - Add entry for the change
