@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code Statusline - Context Usage Display
-# Shows: used tokens / available tokens (percentage)
+# Shows: model | context usage | cost | cwd | transcript path
 
 # Read JSON from stdin (passed by Claude Code)
 INPUT=$(cat)
@@ -9,6 +9,12 @@ INPUT=$(cat)
 TOTAL_INPUT=$(echo "$INPUT" | jq -r '.context_window.total_input_tokens // 0' 2>/dev/null)
 TOTAL_OUTPUT=$(echo "$INPUT" | jq -r '.context_window.total_output_tokens // 0' 2>/dev/null)
 CONTEXT_SIZE=$(echo "$INPUT" | jq -r '.context_window.context_window_size // 200000' 2>/dev/null)
+
+# Parse additional fields
+CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
+MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "Unknown"' 2>/dev/null)
+COST=$(echo "$INPUT" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null)
+TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // ""' 2>/dev/null)
 
 # Ensure we have valid numbers
 TOTAL_INPUT=${TOTAL_INPUT:-0}
@@ -19,6 +25,24 @@ CONTEXT_SIZE=${CONTEXT_SIZE:-200000}
 [[ "$TOTAL_INPUT" == "null" || -z "$TOTAL_INPUT" ]] && TOTAL_INPUT=0
 [[ "$TOTAL_OUTPUT" == "null" || -z "$TOTAL_OUTPUT" ]] && TOTAL_OUTPUT=0
 [[ "$CONTEXT_SIZE" == "null" || -z "$CONTEXT_SIZE" || "$CONTEXT_SIZE" == "0" ]] && CONTEXT_SIZE=200000
+[[ "$CWD" == "null" ]] && CWD=""
+[[ "$MODEL" == "null" || -z "$MODEL" ]] && MODEL="Unknown"
+[[ "$COST" == "null" || -z "$COST" ]] && COST=0
+[[ "$TRANSCRIPT" == "null" ]] && TRANSCRIPT=""
+
+# Format cost (show as $X.XX or $X.XXXX for small amounts)
+if (( $(echo "$COST < 0.01" | bc -l) )); then
+    COST_FMT=$(awk "BEGIN {printf \"\$%.4f\", $COST}")
+else
+    COST_FMT=$(awk "BEGIN {printf \"\$%.2f\", $COST}")
+fi
+
+# Shorten cwd (show last 2 path components)
+if [[ -n "$CWD" ]]; then
+    CWD_SHORT=$(echo "$CWD" | awk -F/ '{if (NF>2) print $(NF-1)"/"$NF; else print $0}')
+else
+    CWD_SHORT="N/A"
+fi
 
 # Calculate total used tokens and percentage
 USED=$((TOTAL_INPUT + TOTAL_OUTPUT))
@@ -59,4 +83,12 @@ else
 fi
 
 # Output the statusline
-printf "%sctx: %s/%s (%s%%) | free: %s%s\n" "$COLOR" "$USED_FMT" "$SIZE_FMT" "$PERCENTAGE" "$FREE_FMT" "$RESET"
+# Format: model | ctx: used/total (%) | cost | cwd | transcript
+CYAN=$'\033[38;2;100;200;255m'
+DIM=$'\033[2m'
+printf "%s%s%s | %sctx: %s/%s (%s%%)%s | %s | %s%s%s | %s%s%s\n" \
+    "$CYAN" "$MODEL" "$RESET" \
+    "$COLOR" "$USED_FMT" "$SIZE_FMT" "$PERCENTAGE" "$RESET" \
+    "$COST_FMT" \
+    "$DIM" "$CWD_SHORT" "$RESET" \
+    "$DIM" "$TRANSCRIPT" "$RESET"
