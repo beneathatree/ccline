@@ -29,6 +29,8 @@ Claude Code pipes JSON to stdin with the following structure:
     "project_dir": "<string>"
   },
   "context_window": {
+    "used_percentage": "<float>",
+    "remaining_percentage": "<float>",
     "total_input_tokens": "<integer>",
     "total_output_tokens": "<integer>",
     "context_window_size": "<integer>"
@@ -74,8 +76,10 @@ Claude Code pipes JSON to stdin with the following structure:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `context_window.total_input_tokens` | integer | Tokens used by input/prompts |
-| `context_window.total_output_tokens` | integer | Tokens used by model responses |
+| `context_window.used_percentage` | float | Percentage of context window used (Claude Code 2.1.6+) |
+| `context_window.remaining_percentage` | float | Percentage of context window remaining (Claude Code 2.1.6+) |
+| `context_window.total_input_tokens` | integer | Cumulative tokens used by input/prompts |
+| `context_window.total_output_tokens` | integer | Cumulative tokens used by model responses |
 | `context_window.context_window_size` | integer | Maximum context window capacity |
 
 #### `cost` Object
@@ -94,6 +98,8 @@ Handle missing, null, or invalid values with these defaults:
 
 | Field | Default |
 |-------|---------|
+| `used_percentage` | (calculate from tokens if missing) |
+| `remaining_percentage` | (calculate from tokens if missing) |
 | `total_input_tokens` | `0` |
 | `total_output_tokens` | `0` |
 | `context_window_size` | `200000` |
@@ -119,11 +125,22 @@ Opus | CONTEXT ██████ (71%) | $0.05 | projects/ccline
 
 ### Calculations
 
+If `used_percentage` and `remaining_percentage` are provided (Claude Code 2.1.6+), use them directly:
+
+```
+percentage = used_percentage
+remaining = remaining_percentage
+```
+
+Otherwise, fall back to token-based calculation:
+
 ```
 used = total_input_tokens + total_output_tokens
 percentage = (used / context_window_size) * 100
 remaining = 100 - percentage
 ```
+
+**Note:** The percentage fields are more accurate. The token fields (`total_input_tokens`, `total_output_tokens`) represent cumulative session totals, not the current context window contents.
 
 ### Redaction Visualization
 
@@ -231,7 +248,9 @@ Claude Code requires explicit permission to execute the script:
 
 ## Known Limitations
 
-The `total_input_tokens` and `total_output_tokens` values represent **conversation message tokens only**. They do not include:
+### Token-Based Fallback (Claude Code < 2.1.6)
+
+When using the token-based fallback calculation, the `total_input_tokens` and `total_output_tokens` values represent **cumulative session totals**, not current context contents. They also do not include:
 
 - System prompt tokens (~2.8K)
 - Tool definition tokens (~15K)
@@ -239,7 +258,11 @@ The `total_input_tokens` and `total_output_tokens` values represent **conversati
 - Skill definitions
 - Autocompact buffer reservation (~45K)
 
-As a result, this tool shows lower usage than Claude Code's built-in `/context` command.
+As a result, the fallback calculation may show different usage than Claude Code's built-in `/context` command.
+
+### Recommended: Use Claude Code 2.1.6+
+
+The `used_percentage` and `remaining_percentage` fields (available in Claude Code 2.1.6+) provide accurate context usage that matches the built-in `/context` command.
 
 ## Dependencies (Reference Implementation)
 
@@ -261,7 +284,7 @@ Alternative implementations may use any JSON parser and standard math operations
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 10000, "total_output_tokens": 10000, "context_window_size": 200000},
+  "context_window": {"used_percentage": 10, "remaining_percentage": 90, "total_input_tokens": 10000, "total_output_tokens": 10000, "context_window_size": 200000},
   "model": {"id": "claude-opus-4-5", "display_name": "Opus"},
   "cost": {"total_cost_usd": 0.05},
   "cwd": "/home/user/dev/projects/myapp",
@@ -281,7 +304,7 @@ Color: Green (10% used < 50%)
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 55000, "total_output_tokens": 55000, "context_window_size": 200000},
+  "context_window": {"used_percentage": 55, "remaining_percentage": 45, "total_input_tokens": 55000, "total_output_tokens": 55000, "context_window_size": 200000},
   "model": {"display_name": "Sonnet"},
   "cost": {"total_cost_usd": 0.25},
   "cwd": "/home/user/project",
@@ -301,7 +324,7 @@ Color: Yellow (55% used, 50-75% range)
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 90000, "total_output_tokens": 90000, "context_window_size": 200000},
+  "context_window": {"used_percentage": 90, "remaining_percentage": 10, "total_input_tokens": 90000, "total_output_tokens": 90000, "context_window_size": 200000},
   "model": {"display_name": "Sonnet"},
   "cost": {"total_cost_usd": 0.003},
   "cwd": "/home/user",
@@ -335,7 +358,7 @@ Color: Green (0% used < 50%)
 Input:
 ```json
 {
-  "context_window": {"total_input_tokens": 35000, "total_output_tokens": 35000, "context_window_size": 200000},
+  "context_window": {"used_percentage": 35, "remaining_percentage": 65, "total_input_tokens": 35000, "total_output_tokens": 35000, "context_window_size": 200000},
   "model": {"display_name": "Opus"},
   "cost": {"total_cost_usd": 0.15},
   "cwd": "/workspace/project",
@@ -349,6 +372,25 @@ Opus | CONTEXT ██████ (65%) | $0.15 | workspace/project
 ```
 
 Color: Green (35% used < 50%)
+
+### Fallback (Legacy Format Without Percentages)
+
+Input:
+```json
+{
+  "context_window": {"total_input_tokens": 10000, "total_output_tokens": 10000, "context_window_size": 200000},
+  "model": {"display_name": "Opus"},
+  "cost": {"total_cost_usd": 0.05},
+  "cwd": "/home/user/project"
+}
+```
+
+Expected output:
+```
+Opus | CONTEXT WINDOW (90%) | $0.05 | user/project
+```
+
+Color: Green (10% used < 50%). When percentage fields are missing, falls back to token-based calculation.
 
 ## Sources & Verification
 

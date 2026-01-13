@@ -6,6 +6,11 @@
 INPUT=$(cat)
 
 # Parse context window data using jq
+# Claude Code 2.1.6+ provides percentage fields directly (more accurate than token calculation)
+USED_PCT=$(echo "$INPUT" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
+REMAINING_PCT=$(echo "$INPUT" | jq -r '.context_window.remaining_percentage // empty' 2>/dev/null)
+
+# Fallback to token-based calculation for older versions
 TOTAL_INPUT=$(echo "$INPUT" | jq -r '.context_window.total_input_tokens // 0' 2>/dev/null)
 TOTAL_OUTPUT=$(echo "$INPUT" | jq -r '.context_window.total_output_tokens // 0' 2>/dev/null)
 CONTEXT_SIZE=$(echo "$INPUT" | jq -r '.context_window.context_window_size // 200000' 2>/dev/null)
@@ -42,27 +47,17 @@ else
     CWD_SHORT="N/A"
 fi
 
-# Calculate total used tokens and percentage
-USED=$((TOTAL_INPUT + TOTAL_OUTPUT))
-PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", ($USED / $CONTEXT_SIZE) * 100}")
-
-# Format numbers with K suffix for readability
-format_tokens() {
-    local num=$1
-    if [ "$num" -ge 1000000 ]; then
-        awk "BEGIN {printf \"%.1fM\", $num / 1000000}"
-    elif [ "$num" -ge 1000 ]; then
-        awk "BEGIN {printf \"%.1fK\", $num / 1000}"
-    else
-        echo "$num"
-    fi
-}
-
-USED_FMT=$(format_tokens $USED)
-SIZE_FMT=$(format_tokens $CONTEXT_SIZE)
-FREE=$((CONTEXT_SIZE - USED))
-FREE_FMT=$(format_tokens $FREE)
-REMAINING_PCT=$(awk "BEGIN {printf \"%.0f\", 100 - $PERCENTAGE}")
+# Use percentage fields if available (Claude Code 2.1.6+), otherwise calculate from tokens
+if [[ -n "$USED_PCT" && "$USED_PCT" != "null" ]]; then
+    # Use the accurate percentage from Claude Code
+    PERCENTAGE=$(printf "%.1f" "$USED_PCT")
+    REMAINING=$(printf "%.0f" "$REMAINING_PCT")
+else
+    # Fallback: calculate from tokens (less accurate - tokens are cumulative, not current context)
+    USED=$((TOTAL_INPUT + TOTAL_OUTPUT))
+    PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", ($USED / $CONTEXT_SIZE) * 100}")
+    REMAINING=$(awk "BEGIN {printf \"%.0f\", 100 - $PERCENTAGE}")
+fi
 
 # Redaction visualization - text gets censored as context fills
 redaction_viz() {
@@ -83,7 +78,7 @@ redaction_viz() {
     fi
 }
 
-REDACT=$(redaction_viz "$PERCENTAGE" "$REMAINING_PCT")
+REDACT=$(redaction_viz "$PERCENTAGE" "$REMAINING")
 
 # Color based on usage percentage (using RGB true colors for consistent display)
 GREEN=$'\033[38;2;0;200;0m'

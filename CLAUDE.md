@@ -17,10 +17,13 @@ Test the script by piping JSON to stdin:
 
 ```bash
 # Low usage (10%) - should show "CONTEXT WINDOW (90%)" in green
-echo '{"context_window":{"total_input_tokens":10000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ./context-statusline.sh
+echo '{"context_window":{"used_percentage":10,"remaining_percentage":90,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ./context-statusline.sh
 
 # High usage (90%) - should show "██████████████ (10%)" in red
-echo '{"context_window":{"total_input_tokens":90000,"total_output_tokens":90000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.50},"cwd":"/home/user/project"}' | ./context-statusline.sh
+echo '{"context_window":{"used_percentage":90,"remaining_percentage":10,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.50},"cwd":"/home/user/project"}' | ./context-statusline.sh
+
+# Legacy format (without percentage fields) - falls back to token calculation
+echo '{"context_window":{"total_input_tokens":10000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ./context-statusline.sh
 
 # Empty input - should show defaults gracefully
 echo '{}' | ./context-statusline.sh

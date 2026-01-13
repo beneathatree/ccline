@@ -6,6 +6,7 @@ All notable changes to ccline.
 
 ### Changed
 - **Remove transcript from output** - Cleaner UI with just model, context, cost, and cwd
+- **Use percentage fields from Claude Code 2.1.6+** - Now uses `used_percentage` and `remaining_percentage` fields for accurate context usage, with fallback to token-based calculation for older versions
 
 ### Added
 - **Redaction visualization** - Context usage now shown as progressively censored "CONTEXT WINDOW" text
