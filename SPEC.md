@@ -4,7 +4,7 @@ This document specifies the behavior of the ccline status line tool. Use this to
 
 ## Overview
 
-ccline is a status line hook for Claude Code that displays real-time session information including model name, context window usage, cost, working directory, and transcript location. Claude Code invokes the script and pipes JSON data to stdin. The script outputs a formatted, color-coded status string to stdout.
+ccline is a status line hook for Claude Code that displays real-time session information including model name, context window usage, cost, and working directory. Claude Code invokes the script and pipes JSON data to stdin. The script outputs a formatted, color-coded status string to stdout.
 
 The context usage is displayed using a **redaction visualization** where the text "CONTEXT WINDOW" progressively gets censored as context fills up, providing an intuitive visual indicator of remaining capacity.
 
@@ -109,12 +109,12 @@ If `context_window_size` is `0`, treat it as `200000` to avoid division by zero.
 Print a single line to stdout in this format:
 
 ```
-<model> | <redaction> (<remaining>%) | <cost> | <cwd> | <transcript>
+<model> | <redaction> (<remaining>%) | <cost> | <cwd>
 ```
 
 Example:
 ```
-Opus | CONTEXT ██████ (71%) | $0.05 | projects/ccline | /home/user/.claude/sessions/abc123.json
+Opus | CONTEXT ██████ (71%) | $0.05 | projects/ccline
 ```
 
 ### Calculations
@@ -271,7 +271,7 @@ Input:
 
 Expected output (without color codes):
 ```
-Opus | CONTEXT WINDOW (90%) | $0.05 | projects/myapp | /home/user/.claude/sessions/abc123.json
+Opus | CONTEXT WINDOW (90%) | $0.05 | projects/myapp
 ```
 
 Color: Green (10% used < 50%)
@@ -291,7 +291,7 @@ Input:
 
 Expected output:
 ```
-Sonnet | ████EXT ██████ (45%) | $0.25 | user/project | /tmp/transcript.json
+Sonnet | ████EXT ██████ (45%) | $0.25 | user/project
 ```
 
 Color: Yellow (55% used, 50-75% range)
@@ -311,7 +311,7 @@ Input:
 
 Expected output:
 ```
-Sonnet | ██████████████ (10%) | $0.0030 | home/user | /tmp/transcript.json
+Sonnet | ██████████████ (10%) | $0.0030 | home/user
 ```
 
 Color: Red (90% used >= 90%), cost shows 4 decimal places
@@ -325,7 +325,7 @@ Input:
 
 Expected output:
 ```
-Unknown | CONTEXT WINDOW (100%) | $0.0000 | N/A |
+Unknown | CONTEXT WINDOW (100%) | $0.0000 | N/A
 ```
 
 Color: Green (0% used < 50%)
@@ -345,7 +345,7 @@ Input:
 
 Expected output:
 ```
-Opus | CONTEXT ██████ (65%) | $0.15 | workspace/project | /data/sessions/session.json
+Opus | CONTEXT ██████ (65%) | $0.15 | workspace/project
 ```
 
 Color: Green (35% used < 50%)

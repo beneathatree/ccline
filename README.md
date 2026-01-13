@@ -17,7 +17,7 @@ But what if you don't trust *me* either? Fair. Check out [SPEC.md](SPEC.md) - it
 Displays your current context window usage in Claude Code's status line using a **redaction visualization**:
 
 ```
-Opus 4.5 | CONTEXT WINDOW (90%) | $0.05 | user/project | /path/to/transcript.jsonl
+Opus 4.5 | CONTEXT WINDOW (90%) | $0.05 | user/project
 ```
 
 As context fills up, the text "CONTEXT WINDOW" progressively gets censored:
@@ -55,14 +55,13 @@ The script receives JSON data from Claude Code via stdin containing session metr
   "cost": {
     "total_cost_usd": 0.05
   },
-  "cwd": "/home/user/project",
-  "transcript_path": "/home/user/.claude/sessions/abc123.jsonl"
+  "cwd": "/home/user/project"
 }
 ```
 
 ### Processing Flow
 
-1. **Parse JSON** - Extract tokens, model, cost, cwd, and transcript using `jq`
+1. **Parse JSON** - Extract tokens, model, cost, and cwd using `jq`
 2. **Validate** - Check for null/empty values and apply defaults
 3. **Calculate** - Compute used tokens (input + output), percentage, and remaining
 4. **Redact** - Generate redaction visualization based on usage percentage
@@ -116,13 +115,13 @@ chmod +x ~/bin/context-statusline.sh
 Verify the script works by running it with sample data:
 
 ```bash
-echo '{"context_window":{"total_input_tokens":20000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project","transcript_path":"/tmp/transcript.jsonl"}' | ~/bin/context-statusline.sh
+echo '{"context_window":{"total_input_tokens":20000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ~/bin/context-statusline.sh
 ```
 
 You should see output like:
 
 ```
-Opus 4.5 | CONTEXT WINDOW (85%) | $0.05 | user/project | /tmp/transcript.jsonl
+Opus 4.5 | CONTEXT WINDOW (85%) | $0.05 | user/project
 ```
 
 If you see colors, your terminal supports true color. If not, the text will still display correctly.

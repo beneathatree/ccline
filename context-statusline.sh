@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code Statusline - Context Usage Display
-# Shows: model | context usage | cost | cwd | transcript path
+# Shows: model | context usage | cost | cwd
 
 # Read JSON from stdin (passed by Claude Code)
 INPUT=$(cat)
@@ -14,7 +14,6 @@ CONTEXT_SIZE=$(echo "$INPUT" | jq -r '.context_window.context_window_size // 200
 CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
 MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "Unknown"' 2>/dev/null)
 COST=$(echo "$INPUT" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null)
-TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // ""' 2>/dev/null)
 
 # Ensure we have valid numbers
 TOTAL_INPUT=${TOTAL_INPUT:-0}
@@ -28,7 +27,6 @@ CONTEXT_SIZE=${CONTEXT_SIZE:-200000}
 [[ "$CWD" == "null" ]] && CWD=""
 [[ "$MODEL" == "null" || -z "$MODEL" ]] && MODEL="Unknown"
 [[ "$COST" == "null" || -z "$COST" ]] && COST=0
-[[ "$TRANSCRIPT" == "null" ]] && TRANSCRIPT=""
 
 # Format cost (show as $X.XX or $X.XXXX for small amounts)
 if (( $(echo "$COST < 0.01" | bc -l) )); then
@@ -105,12 +103,11 @@ else
 fi
 
 # Output the statusline
-# Format: model | redaction | cost | cwd | transcript
+# Format: model | redaction | cost | cwd
 CYAN=$'\033[38;2;100;200;255m'
 DIM=$'\033[2m'
-printf "%s%s%s | %s%s%s | %s | %s%s%s | %s%s%s\n" \
+printf "%s%s%s | %s%s%s | %s | %s%s%s\n" \
     "$CYAN" "$MODEL" "$RESET" \
     "$COLOR" "$REDACT" "$RESET" \
     "$COST_FMT" \
-    "$DIM" "$CWD_SHORT" "$RESET" \
-    "$DIM" "$TRANSCRIPT" "$RESET"
+    "$DIM" "$CWD_SHORT" "$RESET"
