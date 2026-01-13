@@ -45,8 +45,8 @@ The script receives JSON data from Claude Code via stdin containing session metr
 ```json
 {
   "context_window": {
-    "total_input_tokens": 45200,
-    "total_output_tokens": 12300,
+    "used_percentage": 24,
+    "remaining_percentage": 76,
     "context_window_size": 200000
   },
   "model": {
@@ -61,9 +61,9 @@ The script receives JSON data from Claude Code via stdin containing session metr
 
 ### Processing Flow
 
-1. **Parse JSON** - Extract tokens, model, cost, and cwd using `jq`
+1. **Parse JSON** - Extract percentage fields, model, cost, and cwd using `jq`
 2. **Validate** - Check for null/empty values and apply defaults
-3. **Calculate** - Compute used tokens (input + output), percentage, and remaining
+3. **Get percentage** - Use `used_percentage` and `remaining_percentage` directly (Claude Code 2.1.6+), or fall back to token calculation for older versions
 4. **Redact** - Generate redaction visualization based on usage percentage
 5. **Colorize** - Apply ANSI color codes based on usage percentage
 6. **Output** - Print the formatted status line
@@ -115,7 +115,7 @@ chmod +x ~/bin/context-statusline.sh
 Verify the script works by running it with sample data:
 
 ```bash
-echo '{"context_window":{"total_input_tokens":20000,"total_output_tokens":10000,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ~/bin/context-statusline.sh
+echo '{"context_window":{"used_percentage":15,"remaining_percentage":85,"context_window_size":200000},"model":{"display_name":"Opus 4.5"},"cost":{"total_cost_usd":0.05},"cwd":"/home/user/project"}' | ~/bin/context-statusline.sh
 ```
 
 You should see output like:
@@ -196,28 +196,19 @@ Ensure the path in your config matches exactly where the script is installed. Tr
 
 ## Limitations
 
-**This script shows lower token counts than `/context`.**
+### Claude Code 2.1.6+ (Recommended)
 
-The built-in `/context` command shows the full context window usage:
+With Claude Code 2.1.6 and later, the script uses `used_percentage` and `remaining_percentage` fields that provide **accurate context usage** matching the built-in `/context` command. No limitations in this mode.
 
-| Component | Example |
-|-----------|---------|
-| System prompt | ~2.8k |
-| System tools | ~15.4k |
-| Custom agents | ~49 |
-| Skills | ~67 |
-| Messages | ~3.5k |
-| Autocompact buffer (reserved) | ~45k |
+### Claude Code < 2.1.6 (Fallback Mode)
 
-This script only receives `total_input_tokens` and `total_output_tokens` from the JSON passed to status line hooks - which appears to be just the **conversation message tokens**, not the full context.
+For older versions of Claude Code, the script falls back to token-based calculation using `total_input_tokens` and `total_output_tokens`. This fallback has limitations:
 
-**Example discrepancy:**
-- `/context` shows: `22K/200K (11%) | free: 133K`
-- This script shows: `CONTEXT WINDOW (94%)` (only 6% used)
+- Token counts are cumulative session totals, not current context contents
+- Does not account for system prompt, tool definitions, or autocompact buffer
+- May show different percentages than `/context`
 
-The difference is because `/context` accounts for the autocompact buffer reservation (~45k tokens reserved for summarization) and system overhead, while this script only sees conversation message tokens.
-
-**Bottom line:** Use this script for a rough indicator of conversation growth, but refer to `/context` for accurate full context usage.
+**Recommendation:** Update to Claude Code 2.1.6+ for accurate context usage display.
 
 ## File Structure
 
@@ -226,6 +217,7 @@ ccline/
 ├── context-statusline.sh    # The main (and only) script
 ├── README.md                 # This file
 ├── SPEC.md                   # Technical specification for reimplementation
+├── CHANGELOG.md             # Version history
 ├── LICENSE                   # MIT License
 └── .claude/
     └── settings.local.json  # Local Claude Code permissions
