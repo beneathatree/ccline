@@ -399,18 +399,6 @@ The JSON input structure documented above was compiled from the following source
 ### Official Documentation
 - [Claude Code Status Line Configuration](https://code.claude.com/docs/en/statusline) - Official Anthropic documentation
 
-### Community Implementations
-These open-source projects parse the same JSON input, validating the schema:
-
-- [ccstatusline by sirmalloc](https://github.com/sirmalloc/ccstatusline) - Customizable statusline with themes and powerline support
-- [ccstatusline by syou6162](https://github.com/syou6162/ccstatusline) - YAML-configurable statusline tool
-- [claude_monitor_statusline](https://github.com/gabriel-dehan/claude_monitor_statusline) - Usage monitoring statusline
-- [ccusage](https://ccusage.com/guide/statusline) - Claude Code usage analysis tool
-
-### Tutorials & Guides
-- [How to Customize Your Claude Code Status Line](https://alexop.dev/posts/customize_claude_code_status_line/) - Detailed walkthrough with JSON field examples
-- [Oh My Posh + Claude Code Integration](https://dev.to/jandedobbeleer/oh-my-posh-claude-code-66f) - Terminal prompt integration guide
-
 ### Verification Method
 
 To verify the JSON structure yourself, create a debug script:
