@@ -16,6 +16,8 @@ But what if you don't trust *me* either? Fair. Check out [SPEC.md](SPEC.md) - it
 
 Displays your current context window usage in Claude Code's status line using a **redaction visualization**:
 
+![ccline status line screenshot](screenshot.png)
+
 ```
 Opus 4.5 | CONTEXT WINDOW (90%) | $0.05 | user/project
 ```
